@@ -178,7 +178,7 @@ resource "azurerm_container_app" "drupal" {
   template {
     container {
       name   = "drupal"
-      image  = "drupal:11.2.2-apache-bookworm"
+      image  = "drupal:11.2.2-apache-bookworm"  # latest drupal as of deployment date
       cpu    = 0.5
       memory = "1.0Gi"
 
@@ -276,6 +276,27 @@ resource "azurerm_container_app_custom_domain" "drupal" {
   container_app_id = azurerm_container_app.drupal.id
 
   depends_on = [
+    azurerm_dns_cname_record.drupal_cname,
+    azurerm_dns_txt_record.drupal_verification,
+  ]
+}
+
+# dirty hack to us an az CLI command to bind the cert to the custom CNAME
+# because Terraform didn't seem to want to do it conventionally
+resource "null_resource" "bind_cert_manually" {
+  provisioner "local-exec" {
+    command = <<EOT
+      az containerapp hostname bind \
+        --resource-group ${azurerm_resource_group.rg.name} \
+        --name ${azurerm_container_app.drupal.name} \
+        --environment ${azurerm_container_app_environment.aca_env.name} \
+        --hostname ${var.custom_domain_name} \
+        --validation-method CNAME
+    EOT
+  }
+
+  depends_on = [
+    azurerm_container_app_custom_domain.drupal,
     azurerm_dns_cname_record.drupal_cname,
     azurerm_dns_txt_record.drupal_verification,
   ]
