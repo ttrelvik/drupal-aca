@@ -2,10 +2,11 @@
 Terraform deploy Drupal+PostgreSQL to Azure Container App
 tom@trelvik.net
 
-As best I can tell, hashicorp/azurerm 4.x doesn't seem to support binding
+As best I can tell, hashicorp/azurerm 4.x doesn't yet seem to support binding
 managed certificates to a custom domain on a Container App (or some combination
-of that, anyway), so after running terraform apply, you will usually need to then
-manually bind a managed certificate to the Container App with something like:
+of that, anyway), so after successfully running terraform apply for the first time,
+you will usually need to then manually bind a managed certificate to the Container
+App with something like:
 
 az containerapp hostname bind \
   --resource-group ${azurerm_resource_group.rg.name} \
@@ -15,3 +16,4 @@ az containerapp hostname bind \
   --validation-method CNAME
 
 The output of a successful "terraform apply" will give the exact command necessary.
+This is a one time requirement.
