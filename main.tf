@@ -225,6 +225,10 @@ resource "azurerm_container_app" "drupal" {
   }
 
   template {
+    # Scale settings for the container app
+    min_replicas = var.drupal_min_replicas
+    max_replicas = var.drupal_max_replicas
+
     # The initContainer runs before the main container to prepare the volume
     init_container {
       name   = "drupal-sites-initializer"

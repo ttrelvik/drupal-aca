@@ -130,3 +130,15 @@ variable "custom_domain_name" {
   description = "The full custom hostname for the Drupal site (e.g., drupal.example.com)."
   default     = "drupal.az.trelvik.net"
 }
+
+variable "drupal_min_replicas" {
+  type        = number
+  description = "Minimum number of replicas for the Drupal container app."
+  default     = 1
+}
+
+variable "drupal_max_replicas" {
+  type        = number
+  description = "Maximum number of replicas for the Drupal container app."
+  default     = 1
+}
