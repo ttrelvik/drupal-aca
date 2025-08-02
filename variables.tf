@@ -140,5 +140,5 @@ variable "drupal_min_replicas" {
 variable "drupal_max_replicas" {
   type        = number
   description = "Maximum number of replicas for the Drupal container app."
-  default     = 1
+  default     = 5
 }
