@@ -82,6 +82,7 @@ variable "file_share_quota" {
   default     = 5
 }
 
+# drupal_image default gets overridden by custom image in terraform.tfvars
 variable "drupal_image" {
   type        = string
   description = "Docker image for Drupal (e.g., drupal:11.2.2-apache-bookworm)."
@@ -96,7 +97,7 @@ variable "drupal_cpu" {
 
 variable "drupal_memory" {
   type        = string
-  description = "Memory for the Drupal container (e.g., '1.0Gi')."
+  description = "Memory for the Drupal container (e.g., '1Gi')."
   default     = "1Gi"
 }
 
