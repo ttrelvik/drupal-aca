@@ -39,6 +39,57 @@ resource "azurerm_container_app_environment" "aca_env" {
   location                   = azurerm_resource_group.rg.location
   resource_group_name        = azurerm_resource_group.rg.name
   log_analytics_workspace_id = azurerm_log_analytics_workspace.law.id
+  infrastructure_subnet_id     = azurerm_subnet.container_app_subnet.id
+}
+
+#################################################################
+# Network infrastructure: vnets and subnets                     #
+#################################################################
+
+resource "azurerm_virtual_network" "vnet" {
+  name                = "vnet-${var.workload_name}-${var.environment}"
+  address_space       = ["10.0.0.0/16"]
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+}
+
+# Create a subnet for the Container App Environment
+resource "azurerm_subnet" "container_app_subnet" {
+  name                 = "snet-containerapp"
+  resource_group_name  = azurerm_resource_group.rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  address_prefixes     = ["10.0.0.0/23"]
+}
+
+# Create a subnet for the PostgreSQL Flexible Server
+resource "azurerm_subnet" "postgres_subnet" {
+  name                 = "snet-postgres"
+  resource_group_name  = azurerm_resource_group.rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  address_prefixes     = ["10.0.2.0/24"]
+
+  # Delegation for PostgreSQL Flexible Server
+  # This allows the PostgreSQL server to manage its own networking
+  delegation {
+    name = "postgres"
+    service_delegation {
+      name = "Microsoft.DBforPostgreSQL/flexibleServers"
+    }
+  }
+}
+
+# Create a private DNS zone for PostgreSQL
+resource "azurerm_private_dns_zone" "postgres_dns_zone" {
+  name                = "private.postgres.database.azure.com"
+  resource_group_name = azurerm_resource_group.rg.name
+}
+
+# Link the private DNS zone to the virtual network
+resource "azurerm_private_dns_zone_virtual_network_link" "vnet_link" {
+  name                  = "${azurerm_virtual_network.vnet.name}-link"
+  resource_group_name   = azurerm_resource_group.rg.name
+  private_dns_zone_name = azurerm_private_dns_zone.postgres_dns_zone.name
+  virtual_network_id    = azurerm_virtual_network.vnet.id
 }
 
 #################################################################
@@ -118,6 +169,9 @@ resource "azurerm_postgresql_flexible_server" "db_server" {
   storage_mb             = var.postgres_storage_mb
   version                = var.postgres_version
   zone                   = "2"
+  delegated_subnet_id        = azurerm_subnet.postgres_subnet.id
+  private_dns_zone_id        = azurerm_private_dns_zone.postgres_dns_zone.id
+  public_network_access_enabled = false
 }
 
 # Drupal requires the PG_TRGM extension for full-text search
@@ -127,18 +181,12 @@ resource "azurerm_postgresql_flexible_server_configuration" "pg_trgm" {
     value     = "PG_TRGM"
 }
 
+# Create the initial database for Drupal
 resource "azurerm_postgresql_flexible_server_database" "db" {
   name      = "drupaldb"
   server_id = azurerm_postgresql_flexible_server.db_server.id
   charset   = "UTF8"
   collation = "en_US.utf8"
-}
-
-resource "azurerm_postgresql_flexible_server_firewall_rule" "allow_azure" {
-  name             = "allow-all-azure-ips"
-  server_id        = azurerm_postgresql_flexible_server.db_server.id
-  start_ip_address = "0.0.0.0"
-  end_ip_address   = "0.0.0.0"
 }
 
 #################################################################
