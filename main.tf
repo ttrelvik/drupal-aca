@@ -160,10 +160,27 @@ resource "azurerm_storage_share" "sites" {
 }
 
 resource "azurerm_container_app_environment_storage" "sites_storage_link" {
-  name                         = "drupal-sites-storage" # This is the link name referenced in the container app
+  name                         = "drupal-sites-storage"
   container_app_environment_id = azurerm_container_app_environment.aca_env.id
   account_name                 = azurerm_storage_account.st.name
   share_name                   = azurerm_storage_share.sites.name
+  access_key                   = azurerm_storage_account.st.primary_access_key
+  access_mode                  = "ReadWrite"
+}
+
+# The azure container app ingress controller will manage certs for the custom domain
+# but Drupal will need its own cert for its SAML SSO configuration.
+resource "azurerm_storage_share" "certs" {
+  name                 = "drupal-certs"
+  storage_account_id   = azurerm_storage_account.st.id
+  quota                = 1 # Smallest possible size (1 GB)
+}
+
+resource "azurerm_container_app_environment_storage" "certs_storage_link" {
+  name                         = "drupal-certs-storage"
+  container_app_environment_id = azurerm_container_app_environment.aca_env.id
+  account_name                 = azurerm_storage_account.st.name
+  share_name                   = azurerm_storage_share.certs.name
   access_key                   = azurerm_storage_account.st.primary_access_key
   access_mode                  = "ReadWrite"
 }
@@ -185,6 +202,7 @@ resource "azurerm_role_assignment" "acr_pull" {
   principal_id         = azurerm_user_assigned_identity.uai.principal_id
 }
 
+### The actual Drupal Container App starts here
 resource "azurerm_container_app" "drupal" {
   name                         = "ca-${var.workload_name}-${var.environment}"
   resource_group_name          = azurerm_resource_group.rg.name
@@ -202,7 +220,7 @@ resource "azurerm_container_app" "drupal" {
     identity = azurerm_user_assigned_identity.uai.id
   }
 
-  # Secrets are defined here, referencing Key Vault via Managed Identity [1]
+  # Secrets are defined here, referencing Key Vault via Managed Identity
   secret {
     name                = "db-password-secret"
     key_vault_secret_id = azurerm_key_vault_secret.db_password.versionless_id
@@ -283,12 +301,21 @@ resource "azurerm_container_app" "drupal" {
         name = "drupal-sites-volume"
         path = "/var/www/html/sites" # Final mount path for the Drupal application
       }
+      volume_mounts {
+        name = "drupal-certs-volume"
+        path = "/etc/ssl/private" # A secure, non-web-accessible path
+      }
     }
 
     volume {
       name         = "drupal-sites-volume"
       storage_type = "AzureFile"
       storage_name = azurerm_container_app_environment_storage.sites_storage_link.name
+    }
+    volume {
+      name         = "drupal-certs-volume"
+      storage_type = "AzureFile"
+      storage_name = azurerm_container_app_environment_storage.certs_storage_link.name
     }
   }
 }
@@ -307,7 +334,7 @@ resource "azurerm_dns_cname_record" "drupal_cname" {
   zone_name           = data.azurerm_dns_zone.existing.name
   resource_group_name = data.azurerm_dns_zone.existing.resource_group_name
   ttl                 = var.cname_ttl
-  record              = azurerm_container_app.drupal.latest_revision_fqdn
+  record              = azurerm_container_app.drupal.ingress[0].fqdn
 }
 
 resource "azurerm_dns_txt_record" "drupal_verification" {
