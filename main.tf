@@ -136,6 +136,10 @@ resource "azurerm_key_vault" "kv" {
       "Get", "List"
     ]
   }
+  
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "random_password" "db_password" {
@@ -172,6 +176,10 @@ resource "azurerm_postgresql_flexible_server" "db_server" {
   delegated_subnet_id        = azurerm_subnet.postgres_subnet.id
   private_dns_zone_id        = azurerm_private_dns_zone.postgres_dns_zone.id
   public_network_access_enabled = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Drupal requires the PG_TRGM extension for full-text search
@@ -199,12 +207,20 @@ resource "azurerm_storage_account" "st" {
   location                 = azurerm_resource_group.rg.location
   account_tier             = var.storage_account_tier
   account_replication_type = var.storage_account_replication_type
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_storage_share" "sites" {
   name                 = "drupal-sites"
   storage_account_id   = azurerm_storage_account.st.id
   quota                = var.file_share_quota
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_container_app_environment_storage" "sites_storage_link" {
@@ -222,6 +238,10 @@ resource "azurerm_storage_share" "certs" {
   name                 = "drupal-certs"
   storage_account_id   = azurerm_storage_account.st.id
   quota                = 1 # Smallest possible size (1 GB)
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_container_app_environment_storage" "certs_storage_link" {
