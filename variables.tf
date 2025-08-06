@@ -134,7 +134,7 @@ variable "custom_domain_name" {
 variable "drupal_min_replicas" {
   type        = number
   description = "Minimum number of replicas for the Drupal container app."
-  default     = 1
+  default     = 0
 }
 
 variable "drupal_max_replicas" {
