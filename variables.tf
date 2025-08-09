@@ -82,6 +82,18 @@ variable "file_share_quota" {
   default     = 5
 }
 
+variable "dockerhub_username" {
+  type        = string
+  description = "Docker Hub username."
+  sensitive   = true
+}
+
+variable "dockerhub_password" {
+  type        = string
+  description = "Docker Hub password."
+  sensitive   = true
+}
+
 # drupal_image default gets overridden by custom image in terraform.tfvars
 variable "drupal_image" {
   type        = string

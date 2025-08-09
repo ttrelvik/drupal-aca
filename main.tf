@@ -257,20 +257,7 @@ resource "azurerm_container_app_environment_storage" "certs_storage_link" {
 # App: Azure Container App running Drupal + Init Container      #
 #################################################################
 
-# Look up the ACR
-data "azurerm_container_registry" "acr" {
-  name                = "acrdrupalprodnd5jqaqk"
-  resource_group_name = "rg-drupal-prod"
-}
-
-# Grant the app's identity permission to pull from the ACR
-resource "azurerm_role_assignment" "acr_pull" {
-  scope                = data.azurerm_container_registry.acr.id
-  role_definition_name = "AcrPull"
-  principal_id         = azurerm_user_assigned_identity.uai.principal_id
-}
-
-### The actual Drupal Container App starts here
+# Drupal Container App
 resource "azurerm_container_app" "drupal" {
   name                         = "ca-${var.workload_name}-${var.environment}"
   resource_group_name          = azurerm_resource_group.rg.name
@@ -282,10 +269,11 @@ resource "azurerm_container_app" "drupal" {
     identity_ids = [azurerm_user_assigned_identity.uai.id]
   }
 
-  # Link to the ACR for pulling the Drupal image
+  # Link to the Docker Hub for pulling the Drupal image
   registry {
-    server   = data.azurerm_container_registry.acr.login_server
-    identity = azurerm_user_assigned_identity.uai.id
+    server   = "index.docker.io"
+    username = var.dockerhub_username
+    password_secret_name = "dockerhub-password-secret"
   }
 
   # Secrets are defined here, referencing Key Vault via Managed Identity
@@ -298,6 +286,10 @@ resource "azurerm_container_app" "drupal" {
     name                = "db-host-secret"
     key_vault_secret_id = azurerm_key_vault_secret.db_host.versionless_id
     identity            = azurerm_user_assigned_identity.uai.id
+  }
+    secret {
+    name = "dockerhub-password-secret"
+    value = var.dockerhub_password
   }
 
   ingress {

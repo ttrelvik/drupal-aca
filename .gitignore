@@ -1,3 +1,6 @@
+# direnv configuration
+.envrc
+
 # Local .terraform directories
 .terraform/
 
