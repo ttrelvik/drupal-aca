@@ -4,6 +4,13 @@ variable "workload_name" {
   default     = "drupal"
 }
 
+# drupal_image default gets overridden by custom image in terraform.tfvars
+variable "drupal_image" {
+  type        = string
+  description = "Docker image for Drupal (e.g., drupal:11.2.2-apache-bookworm)."
+  default     = "drupal:11.2.2-apache-bookworm"
+}
+
 variable "environment" {
   type        = string
   description = "Environment tag (e.g. dev, qa, prod)."
@@ -94,13 +101,6 @@ variable "dockerhub_password" {
   sensitive   = true
 }
 
-# drupal_image default gets overridden by custom image in terraform.tfvars
-variable "drupal_image" {
-  type        = string
-  description = "Docker image for Drupal (e.g., drupal:11.2.2-apache-bookworm)."
-  default     = "drupal:11.2.2-apache-bookworm"
-}
-
 variable "drupal_cpu" {
   type        = number
   description = "CPU cores for the Drupal container."
@@ -146,7 +146,7 @@ variable "custom_domain_name" {
 variable "drupal_min_replicas" {
   type        = number
   description = "Minimum number of replicas for the Drupal container app."
-  default     = 0
+  default     = 1
 }
 
 variable "drupal_max_replicas" {

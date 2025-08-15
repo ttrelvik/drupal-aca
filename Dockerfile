@@ -1,5 +1,5 @@
 # Start from an official Drupal image.
-FROM drupal:11.2.2-apache-bookworm
+FROM drupal:11.2.3-apache-bookworm
 
 # Set the working directory to the Drupal root
 WORKDIR /opt/drupal
