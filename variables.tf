@@ -1,20 +1,36 @@
-variable "workload_name" {
-  type        = string
-  description = "Short name for this workload (used in resource names)."
-  default     = "drupal"
-}
-
-# drupal_image default gets overridden by custom image in terraform.tfvars
-variable "drupal_image" {
-  type        = string
-  description = "Docker image for Drupal (e.g., drupal:11.2.2-apache-bookworm)."
-  default     = "drupal:11.2.2-apache-bookworm"
-}
-
-variable "environment" {
-  type        = string
-  description = "Environment tag (e.g. dev, qa, prod)."
-  default     = "prod"
+variable "environment_variables" {
+  description = "A map of environment-specific variables."
+  type        = map(any)
+  default = {
+    "dev" = {
+      workload_name        = "drupal"
+      drupal_image         = "ttrelvik/custom-drupal:1.4"
+      custom_domain_name   = "devdrupal.az.trelvik.net"
+      drupal_min_replicas  = 0
+      drupal_max_replicas  = 1
+    }
+    "prod" = {
+      workload_name        = "drupal"
+      drupal_image         = "ttrelvik/custom-drupal:1.4"
+      custom_domain_name   = "drupal.az.trelvik.net"
+      drupal_min_replicas  = 0
+      drupal_max_replicas  = 3
+    }
+    "cmsdev" = {
+      workload_name        = "drupalcms"
+      drupal_image         = "ttrelvik/custom-drupalcms:1.0"
+      custom_domain_name   = "devdrupalcms.az.trelvik.net"
+      drupal_min_replicas  = 0
+      drupal_max_replicas  = 1
+    }
+    "cmsprod" = {
+      workload_name        = "drupalcms"
+      drupal_image         = "ttrelvik/custom-drupalcms:1.0"
+      custom_domain_name   = "drupalcms.az.trelvik.net"
+      drupal_min_replicas  = 0
+      drupal_max_replicas  = 3
+    }
+  }
 }
 
 variable "location" {
@@ -135,22 +151,4 @@ variable "cname_ttl" {
   type        = number
   description = "TTL for the DNS CNAME and TXT records."
   default     = 300
-}
-
-variable "custom_domain_name" {
-  type        = string
-  description = "The full custom hostname for the Drupal site (e.g., drupal.example.com)."
-  default     = "drupal.az.trelvik.net"
-}
-
-variable "drupal_min_replicas" {
-  type        = number
-  description = "Minimum number of replicas for the Drupal container app."
-  default     = 1
-}
-
-variable "drupal_max_replicas" {
-  type        = number
-  description = "Maximum number of replicas for the Drupal container app."
-  default     = 5
 }

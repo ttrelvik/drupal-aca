@@ -14,7 +14,12 @@ provider "azurerm" {
 }
 
 locals {
-  subdomain = replace(var.custom_domain_name, ".${var.dns_zone_name}", "")
+  # Selects the appropriate configuration map based on the current Terraform workspace.
+  # It falls back to the "dev" configuration if the workspace name doesn't match a key.
+  env_vars = lookup(var.environment_variables, terraform.workspace, var.environment_variables["prod"])
+
+  # The subdomain is derived from the custom domain name in the selected map.
+  subdomain = replace(local.env_vars.custom_domain_name, ".${var.dns_zone_name}", "")
 }
 
 #################################################################
@@ -22,12 +27,12 @@ locals {
 #################################################################
 
 resource "azurerm_resource_group" "rg" {
-  name     = "rg-${var.workload_name}-${var.environment}"
+  name     = "rg-${local.env_vars.workload_name}-${terraform.workspace}"
   location = var.location
 }
 
 resource "azurerm_log_analytics_workspace" "law" {
-  name                = "log-${var.workload_name}-${var.environment}"
+  name                = "log-${local.env_vars.workload_name}-${terraform.workspace}"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   sku                 = var.log_analytics_sku
@@ -35,7 +40,7 @@ resource "azurerm_log_analytics_workspace" "law" {
 }
 
 resource "azurerm_container_app_environment" "aca_env" {
-  name                       = "cae-${var.workload_name}-${var.environment}"
+  name                       = "cae-${local.env_vars.workload_name}-${terraform.workspace}"
   location                   = azurerm_resource_group.rg.location
   resource_group_name        = azurerm_resource_group.rg.name
   log_analytics_workspace_id = azurerm_log_analytics_workspace.law.id
@@ -47,7 +52,7 @@ resource "azurerm_container_app_environment" "aca_env" {
 #################################################################
 
 resource "azurerm_virtual_network" "vnet" {
-  name                = "vnet-${var.workload_name}-${var.environment}"
+  name                = "vnet-${local.env_vars.workload_name}-${terraform.workspace}"
   address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
@@ -100,7 +105,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "vnet_link" {
 data "azurerm_client_config" "current" {}
 
 resource "azurerm_user_assigned_identity" "uai" {
-  name                = "uai-${var.workload_name}-${var.environment}"
+  name                = "uai-${local.env_vars.workload_name}-${terraform.workspace}"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
 }
@@ -113,7 +118,7 @@ resource "random_string" "suffix" {
 }
 
 resource "azurerm_key_vault" "kv" {
-  name = "kv-${var.workload_name}-${random_string.suffix.result}"
+  name = "kv-${local.env_vars.workload_name}-${random_string.suffix.result}"
   location                   = azurerm_resource_group.rg.location
   resource_group_name        = azurerm_resource_group.rg.name
   tenant_id                  = data.azurerm_client_config.current.tenant_id
@@ -165,7 +170,7 @@ resource "azurerm_key_vault_secret" "db_host" {
 #################################################################
 
 resource "azurerm_postgresql_flexible_server" "db_server" {
-  name                   = "db-${var.workload_name}-${var.environment}"
+  name                   = "db-${local.env_vars.workload_name}-${terraform.workspace}"
   location               = azurerm_resource_group.rg.location
   resource_group_name    = azurerm_resource_group.rg.name
   sku_name               = var.postgres_sku_name
@@ -203,7 +208,7 @@ resource "azurerm_postgresql_flexible_server_database" "db" {
 #################################################################
 
 resource "azurerm_storage_account" "st" {
-  name                     = "st${replace(var.workload_name, "-", "")}${var.environment}"
+  name                     = "st${replace(local.env_vars.workload_name, "-", "")}${terraform.workspace}"
   resource_group_name      = azurerm_resource_group.rg.name
   location                 = azurerm_resource_group.rg.location
   account_tier             = var.storage_account_tier
@@ -260,7 +265,7 @@ resource "azurerm_container_app_environment_storage" "certs_storage_link" {
 
 # Drupal Container App
 resource "azurerm_container_app" "drupal" {
-  name                         = "ca-${var.workload_name}-${var.environment}"
+  name                         = "ca-${local.env_vars.workload_name}-${terraform.workspace}"
   resource_group_name          = azurerm_resource_group.rg.name
   container_app_environment_id = azurerm_container_app_environment.aca_env.id
   revision_mode                = var.revision_mode
@@ -305,13 +310,13 @@ resource "azurerm_container_app" "drupal" {
 
   template {
     # Scale settings for the container app
-    min_replicas = var.drupal_min_replicas
-    max_replicas = var.drupal_max_replicas
+    min_replicas = local.env_vars.drupal_min_replicas
+    max_replicas = local.env_vars.drupal_max_replicas
 
     # The initContainer runs before the main container to prepare the volume
     init_container {
       name   = "drupal-sites-initializer"
-      image  = var.drupal_image
+      image  = local.env_vars.drupal_image
       cpu    = 0.25
       memory = "0.5Gi"
 
@@ -337,7 +342,7 @@ resource "azurerm_container_app" "drupal" {
 
     container {
       name   = "drupal"
-      image  = var.drupal_image
+      image  = local.env_vars.drupal_image
       cpu    = var.drupal_cpu
       memory = var.drupal_memory
 
@@ -410,7 +415,7 @@ resource "azurerm_dns_txt_record" "drupal_verification" {
 }
 
 resource "azurerm_container_app_custom_domain" "drupal" {
-  name             = var.custom_domain_name
+  name             = local.env_vars.custom_domain_name
   container_app_id = azurerm_container_app.drupal.id
 
 lifecycle {
@@ -423,4 +428,35 @@ lifecycle {
     azurerm_dns_cname_record.drupal_cname,
     azurerm_dns_txt_record.drupal_verification,
   ]
+}
+
+# This null_resource runs a local-exec provisioner to bind the managed certificate
+# to the custom domain after the DNS records have been created and propagated.
+resource "null_resource" "bind_certificate" {
+  # This resource depends on the custom domain and its DNS records being created first.
+  depends_on = [
+    azurerm_container_app_custom_domain.drupal,
+    azurerm_dns_cname_record.drupal_cname,
+    azurerm_dns_txt_record.drupal_verification
+  ]
+
+  # Triggers re-running this command if key values change.
+  triggers = {
+    hostname    = local.env_vars.custom_domain_name
+    app_name    = azurerm_container_app.drupal.name
+    rg_name     = azurerm_resource_group.rg.name
+    environment = azurerm_container_app_environment.aca_env.name
+  }
+
+  # This provisioner runs the Azure CLI command on the machine executing Terraform.
+  provisioner "local-exec" {
+    command = <<EOT
+      az containerapp hostname bind \
+        --resource-group "${self.triggers.rg_name}" \
+        --name "${self.triggers.app_name}" \
+        --environment "${self.triggers.environment}" \
+        --hostname "${self.triggers.hostname}" \
+        --validation-method CNAME
+    EOT
+  }
 }
