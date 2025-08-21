@@ -2,6 +2,7 @@ variable "environment_variables" {
   description = "A map of environment-specific variables."
   type        = map(any)
   default = {
+    # Drupal Core (dev and prod)
     "dev" = {
       workload_name        = "drupal"
       drupal_image         = "ttrelvik/custom-drupal:1.4"
@@ -11,23 +12,24 @@ variable "environment_variables" {
     }
     "prod" = {
       workload_name        = "drupal"
-      drupal_image         = "ttrelvik/custom-drupal:1.4"
+      drupal_image         = "ttrelvik/custom-drupal:1.5"
       custom_domain_name   = "drupal.az.trelvik.net"
-      drupal_min_replicas  = 0
+      drupal_min_replicas  = 1
       drupal_max_replicas  = 3
     }
+    # Drupal CMS (dev and prod)
     "cmsdev" = {
       workload_name        = "drupalcms"
-      drupal_image         = "ttrelvik/custom-drupalcms:1.0"
+      drupal_image         = "ttrelvik/custom-drupalcms:1.0.0"
       custom_domain_name   = "devdrupalcms.az.trelvik.net"
-      drupal_min_replicas  = 0
+      drupal_min_replicas  = 1
       drupal_max_replicas  = 1
     }
     "cmsprod" = {
       workload_name        = "drupalcms"
       drupal_image         = "ttrelvik/custom-drupalcms:1.0"
       custom_domain_name   = "drupalcms.az.trelvik.net"
-      drupal_min_replicas  = 0
+      drupal_min_replicas  = 1
       drupal_max_replicas  = 3
     }
   }

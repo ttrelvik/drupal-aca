@@ -65,12 +65,19 @@ resource "azurerm_container_app" "drupal" {
         path = "/mnt/drupal-sites"
       }
 
-      # This command copies default files to the volume if it's not already initialized
+      # This command copies default files & adds the permissions setting
       command = ["/bin/sh", "-c", <<-EOT
       if [ ! -f /mnt/drupal-sites/default/settings.php ]; then
           echo 'Initializing sites directory...'
-          cp -aR /var/www/html/sites/. /mnt/drupal-sites/
+          # Copy the default sites directory from the image
+          cp -aR /opt/drupal/web/sites/. /mnt/drupal-sites/
+          # Set ownership for the web server
           chown -R www-data:www-data /mnt/drupal-sites
+          # Make settings.php writable so the installer can use it
+          chmod 777 /mnt/drupal-sites/default
+          chmod 666 /mnt/drupal-sites/default/settings.php
+          # Add the setting to skip permissions hardening
+          echo "\$settings['skip_permissions_hardening'] = TRUE;" >> /mnt/drupal-sites/default/settings.php
           echo 'Initialization complete.'
       else
           echo 'Sites directory already initialized.'

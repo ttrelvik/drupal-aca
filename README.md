@@ -4,6 +4,20 @@ This Terraform project provides a robust, production-ready infrastructure to dep
 
 The infrastructure is managed using Terraform workspaces to support multiple environments (e.g., `dev`, `prod`, `cmsdev`, `cmsprod`).
 
+## Drupal Core vs. Drupal CMS Workspaces
+
+This repository is configured to deploy two different "flavors" of Drupal, controlled by the Terraform workspace you select:
+
+1.  **Drupal Core (`dev`, `prod`)**:
+    * These workspaces deploy a standard **Drupal Core** installation.
+    * The container image for this version is built using the `Dockerfile` included in this repository, which adds several common security modules (`Password Policy`, `SecKit`, `Login Security`) to the official `drupal` base image.
+
+2.  **Drupal CMS (`cmsdev`, `cmsprod`)**:
+    * These workspaces deploy the **Drupal CMS** distribution, which is a specific, pre-packaged version of Drupal.
+    * This setup uses a pre-built Docker image (`ttrelvik/custom-drupalcms`) that was created and pushed to Docker Hub in a [separate project](https://github.com/ttrelvik/drupal-cms-docker). It does **not** use the `Dockerfile` in this repository.
+
+This multi-environment configuration is managed in the `variables.tf` file, which maps each workspace name to its corresponding Docker image tag and other settings.
+
 ## Architecture Overview
 
 This project provisions the following key resources in a secure, private network:
