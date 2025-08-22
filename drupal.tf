@@ -2,6 +2,11 @@
 # App: Azure Container App running Drupal + Init Container      #
 #################################################################
 
+# Local variable for Drupal sites path based on environment
+locals {
+  drupal_sites_path = terraform.workspace == "cmsdev" || terraform.workspace == "cmsprod" ? "/app/web/sites" : "/var/www/html/sites"
+}
+
 # Drupal Container App
 resource "azurerm_container_app" "drupal" {
   name                         = "ca-${local.env_vars.workload_name}-${terraform.workspace}"
@@ -67,10 +72,16 @@ resource "azurerm_container_app" "drupal" {
 
       # This command copies default files & adds the permissions setting
       command = ["/bin/sh", "-c", <<-EOT
-      if [ ! -f /mnt/drupal-sites/default/settings.php ]; then
+        if [ ! -f /mnt/drupal-sites/default/settings.php ]; then
           echo 'Initializing sites directory...'
+          # Determine the correct source directory
+          if [ -d /app/web/sites ]; then
+            DRUPAL_SITES_SOURCE_DIR="/app/web/sites"
+          else
+            DRUPAL_SITES_SOURCE_DIR="/opt/drupal/web/sites"
+          fi
           # Copy the default sites directory from the image
-          cp -aR /opt/drupal/web/sites/. /mnt/drupal-sites/
+          cp -aR $DRUPAL_SITES_SOURCE_DIR/. /mnt/drupal-sites/
           # Set ownership for the web server
           chown -R www-data:www-data /mnt/drupal-sites
           # Make settings.php writable so the installer can use it
@@ -79,9 +90,9 @@ resource "azurerm_container_app" "drupal" {
           # Add the setting to skip permissions hardening
           echo "\$settings['skip_permissions_hardening'] = TRUE;" >> /mnt/drupal-sites/default/settings.php
           echo 'Initialization complete.'
-      else
+        else
           echo 'Sites directory already initialized.'
-      fi
+        fi
       EOT
       ]
     }
@@ -111,7 +122,7 @@ resource "azurerm_container_app" "drupal" {
 
       volume_mounts {
         name = "drupal-sites-volume"
-        path = "/var/www/html/sites" # Final mount path for the Drupal application
+        path = local.drupal_sites_path # Final mount path for the Drupal application
       }
       volume_mounts {
         name = "drupal-certs-volume"
