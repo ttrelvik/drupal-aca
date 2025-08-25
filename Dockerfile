@@ -14,4 +14,4 @@ RUN composer require \
     'drupal/seckit:^2.0' \
     'drupal/login_security:^2.0' \
     'drupal/samlauth:^3.11' \
-    'drush/drush:^13.6.2'
+    'drush/drush:^13.6'
