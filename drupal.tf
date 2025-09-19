@@ -50,6 +50,13 @@ resource "azurerm_container_app" "drupal" {
       latest_revision = true
       percentage      = 100
     }
+      # Allow all IPs to access the app (public web server)
+      ip_security_restriction {
+      name        = "AllowAll"
+      action      = "Allow"
+      ip_address_range = "0.0.0.0/0"
+      description = "Allow all traffic"
+    }
   }
 
   template {
